@@ -1,8 +1,8 @@
 # hwb-utilities
-Utilities forHWB JSON schema files.
+Utilities for [HWB](https://github.com/entur/hwb). 
 
 ## APIs
-DTOs from JSON schema. 
+DTOs from JSON schema files. 
 
 ### Java
 Java class generation. Packages corresponds to directory directory.
