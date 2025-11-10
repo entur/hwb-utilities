@@ -1,11 +1,212 @@
 
+plugins {
+    id 'com.github.ben-manes.versions' version '0.53.0' apply false // ./gradlew dependencyUpdates
+    id 'org.jreleaser' version '1.20.0' apply false
+}
+
+def buildProjects() {
+    subprojects.findAll { new File(it.projectDir, 'build.gradle').file }
+}
+
+def platformProjects() {
+    buildProjects().findAll { it.name.equals("bom") }
+}
+
+def exampleProjects() {
+    buildProjects().findAll { it.name.endsWith("-example") }
+}
+
+def libraryProjects() {
+    buildProjects().findAll { !exampleProjects().contains(it) && !platformProjects().contains(it) }
+}
+
+def jvmProjects() {
+    buildProjects().findAll { !platformProjects().contains(it) }
+}
+
+ext.stagingRepositoryPath = "${rootDir.getCanonicalFile()}/build/staging-deploy"
+
+// projects which should be published
+configure(libraryProjects()) {
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
+
+    java {
+        withSourcesJar()
+        withJavadocJar()
+
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    publishing {
+
+        publications {
+            maven(MavenPublication) {
+                from components.java
+
+                groupId = "$group"
+                artifactId = project.name
+
+                if(project.ext.has('artifactId')) {
+                    System.out.println("Publishing " + project.name + " with artifact-id " + project.ext.artifactId)
+                }
+
+                pom {
+                    name = "${!project.ext.has('artifactId') ? project.name : project.ext.artifactId}"
+                    url = 'https://github.com/entur/hwb-utilities'
+                    packaging = 'jar'
+                    inceptionYear = '2025'
+                    description = project.name
+
+                    licenses {
+                        license {
+                            name = 'European Union Public Licence v1.2'
+                            url = 'https://www.eupl.eu/'
+                            distribution = 'repo'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = "skjolber"
+                            name = "Thomas Skjølberg"
+                            email = "thomas.rorvik.skjolberg@entur.org"
+                        }
+                    }
+                    scm {
+                        url = 'https://github.com/entur/hwb-utilities'
+                        connection = 'git@github.com:entur/hwb-utilities.git'
+                    }
+                }
+            }
+        }
+
+        repositories {
+            maven {
+                url = stagingRepositoryPath
+            }
+        }
+    }
+
+}
+
+configure(jvmProjects()) {
+    apply plugin: 'com.github.ben-manes.versions'
+
+    ext {
+        jacksonVersion = '2.20.1'
+        junitJupiterVersion = '5.12.2'
+        mockitoVersion = '5.20.0'
+        googleTruthVersion = '1.4.5'
+    }
+
+    test {
+        useJUnitPlatform {
+            includeEngines 'junit-jupiter', 'junit-vintage'
+        }
+    }
+
+    dependencies {
+        components.all(JunitAlignmentRule)
+
+        // JUnit Jupiter API and TestEngine implementation
+        testImplementation("org.junit.jupiter:junit-jupiter:${junitJupiterVersion}")
+
+        // https://stackoverflow.com/questions/79640685/cannot-build-project-after-upgrading-spring-boot-to-3-5
+        testRuntimeOnly "org.junit.platform:junit-platform-launcher:1${junitJupiterVersion.substring(1)}"
+        testImplementation("org.mockito:mockito-core:${mockitoVersion}")
+
+        testImplementation("com.google.truth:truth:${googleTruthVersion}")
+        testImplementation("com.google.truth.extensions:truth-java8-extension:${googleTruthVersion}")
+    }
+
+    // from https://github.com/ben-manes/gradle-versions-plugin?tab=readme-ov-file#rejectversionsif-and-componentselection
+    def isNonStable = { String version ->
+        def stableKeyword = ['RELEASE', 'FINAL', 'GA'].any { ita -> version.toUpperCase().contains(ita) }
+        def regex = /^[0-9,.v-]+(-r)?$/
+        return !stableKeyword && !(version ==~ regex)
+    }
+
+    tasks.named("dependencyUpdates").configure {
+        rejectVersionIf {
+            isNonStable(it.candidate.version)
+        }
+    }
+}
+
 allprojects {
+    apply plugin: 'eclipse'
+    apply plugin: 'idea'
+
+    eclipse {
+        classpath {
+            downloadSources = true
+            downloadJavadoc = true
+        }
+    }
+
+    idea {
+        module {
+            downloadJavadoc = true
+            downloadSources = true
+        }
+    }
+
     repositories {
         mavenLocal()
         mavenCentral()
     }
+
 }
 
-ext {
-    jacksonVersion = '2.20.1'
+abstract class JunitAlignmentRule implements ComponentMetadataRule {
+    void execute(ComponentMetadataContext ctx) {
+        ctx.details.with {
+            if (id.group.startsWith("org.junit.jupiter ")) {
+                belongsTo("org.junit.jupiter:junit-virtual-platform:${id.version}")
+            }
+        }
+    }
+}
+
+
+task clean {
+}
+
+apply plugin: 'org.jreleaser'
+
+jreleaser {
+    signing {
+        active = 'ALWAYS'
+        armored = true
+    }
+    deploy {
+        maven {
+            mavenCentral {
+                release {
+                    active = 'RELEASE'
+                    url = 'https://central.sonatype.com/api/v1/publisher'
+                    stagingRepository(stagingRepositoryPath)
+                }
+            }
+            nexus2 {
+                snapshot {
+                    active = 'SNAPSHOT'
+                    applyMavenCentralRules = true
+                    snapshotSupported = true
+                    closeRepository = true
+                    releaseRepository = true
+                    url = "https://ossrh-staging-api.central.sonatype.com/service/local"
+                    snapshotUrl = 'https://central.sonatype.com/repository/maven-snapshots/'
+                    stagingRepository(stagingRepositoryPath)
+                }
+            }
+        }
+    }
+    release {
+        github {
+            skipTag = false // Skip creating a new github tag?
+            skipRelease = true // Skip creating a new github release?
+        }
+    }
 }
