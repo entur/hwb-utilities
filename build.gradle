@@ -1,0 +1,11 @@
+
+allprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}
+
+ext {
+    jacksonVersion = '2.20.1'
+}
