@@ -1,0 +1,28 @@
+plugins {
+  id "org.jsonschema2pojo" version "1.2.2"
+}
+
+android {
+    defaultConfig {
+        minSdkVersion 23
+    }
+    namespace "hwb.messages"
+}
+
+jsonSchema2Pojo { // https://github.com/joelittlejohn/jsonschema2pojo/tree/master/jsonschema2pojo-gradle-plugin
+  targetPackage = 'hwb.utilities.message'
+  parcelable = true
+  source = files(rootProject.file("specifications"))
+  includeGeneratedAnnotation = false
+  targetVersion = "1.8"
+  // TODO update date format
+}
+
+dependencies {
+  api "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+  api "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
+
+  // workaround for https://issuetracker.google.com/issues/411739086?pli=1#comment4
+  testImplementation "junit:junit:${junitVersion}"
+
+}

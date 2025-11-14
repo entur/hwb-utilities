@@ -3,15 +3,13 @@ plugins {
 }
 
 jsonSchema2Pojo { // https://github.com/joelittlejohn/jsonschema2pojo/tree/master/jsonschema2pojo-gradle-plugin
-  targetPackage = 'hwb'
+  targetPackage = 'hwb.utilities.message'
+  source = files(rootProject.file("specifications"))
+  includeGeneratedAnnotation = false
+  // TODO update date format once android can do the same
 }
 
 tasks.getByName("sourcesJar").dependsOn("generateJsonSchema2Pojo")
-
-tasks.named('test') {
-  // Use JUnit Platform for unit tests.
-  useJUnitPlatform()
-}
 
 dependencies {
   api "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"

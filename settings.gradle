@@ -1,1 +1,1 @@
-include "api:java"
+include ":hwb-messages-java-lib", ":hwb-messages-android-lib"
