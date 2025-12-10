@@ -47,6 +47,9 @@ allprojects {
 ext {
     jacksonVersion = '2.20.1'
     junitVersion = '4.13.2'
+    javaWebSocketVersion = '1.6.0'
+    hivemqMqttClientVersion = '1.2.1'
+    nettyVersion = '4.1.48.Final'
 }
 
 ext.commonDependencies = {
