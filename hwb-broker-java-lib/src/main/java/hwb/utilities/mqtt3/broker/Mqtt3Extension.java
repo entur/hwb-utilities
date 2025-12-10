@@ -1,6 +1,4 @@
-package no.entur.android.nfc.external.mqtt.test.broker;
-
-import android.util.Log;
+package hwb.utilities.mqtt3.broker;
 
 import org.java_websocket.exceptions.InvalidDataException;
 import org.java_websocket.exceptions.InvalidFrameException;
@@ -9,8 +7,6 @@ import org.java_websocket.extensions.IExtension;
 import org.java_websocket.framing.Framedata;
 
 public class Mqtt3Extension implements IExtension {
-
-    private static final String LOG_TAG = Mqtt3Extension.class.getName();
 
     @Override
     public void decodeFrame(Framedata inputFrame) {

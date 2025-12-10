@@ -1,22 +1,11 @@
-plugins {
-  id "org.jsonschema2pojo" version "1.2.2"
-}
-
-jsonSchema2Pojo { // https://github.com/joelittlejohn/jsonschema2pojo/tree/master/jsonschema2pojo-gradle-plugin
-  targetPackage = 'hwb.utilities'
-  source = files(rootProject.file("specifications"))
-  includeGeneratedAnnotation = false
-  // TODO update date format once android can do the same
-}
-
-tasks.getByName("sourcesJar").dependsOn("generateJsonSchema2Pojo")
 
 dependencies {
+  api project (":hwb-messages-java-lib")
+
   api "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
   api "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
 
   api("io.netty:netty-codec-http:${nettyVersion}")
   api "com.hivemq:hivemq-mqtt-client:${hivemqMqttClientVersion}"
-  api "hwb.utilities:hwb-messages-android:${hwbMessagesVersion}"
 
 }

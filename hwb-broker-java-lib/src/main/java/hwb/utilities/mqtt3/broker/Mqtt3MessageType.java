@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package no.entur.android.nfc.external.mqtt.test.broker;
+package hwb.utilities.mqtt3.broker;
 
 public enum Mqtt3MessageType {
 

@@ -1,25 +1,33 @@
-package no.entur.android.nfc.external.mqtt.test.broker;
-
-import android.util.Log;
+package hwb.utilities.mqtt3.broker;
 
 import org.java_websocket.WebSocket;
 import org.java_websocket.drafts.Draft;
 import org.java_websocket.drafts.Draft_6455;
+import org.java_websocket.extensions.IExtension;
 import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.protocols.IProtocol;
+import org.java_websocket.protocols.Protocol;
 import org.java_websocket.server.WebSocketServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutput;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import javax.net.ServerSocketFactory;
 
 /**
  * A simple WebSocketServer MQTT broker implementation for use with testing.
@@ -28,13 +36,83 @@ import io.netty.buffer.Unpooled;
  */
 public class Mqtt3WebSocketBroker extends WebSocketServer {
 
+    // see https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Mqtt3WebSocketBroker.class);
+
     private static final int CONTINUATION_BIT_MASK = 0x80;
     private static final int VALUE_MASK = 0x7f;
     private static final byte VALUE_BITS = 7;
 
-    private static final String LOG_TAG = Mqtt3WebSocketBroker.class.getName();
-
     private static final AtomicInteger messageNumber = new AtomicInteger();
+
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+
+        private Random random = new Random(System.nanoTime());
+
+        private int port = -1;
+
+        private List<Mqtt3TopicListener> listeners = new ArrayList<>();
+
+        public Builder withListener(Mqtt3TopicListener listener) {
+            this.listeners.add(listener);
+            return this;
+        }
+
+        public Builder withListeners(List<Mqtt3TopicListener> listeners) {
+            this.listeners = listeners;
+            return this;
+        }
+
+        public Builder withPort(int port) {
+            this.port = port;
+            return this;
+        }
+
+        public Mqtt3WebSocketBroker build() {
+            if(port == -1) {
+                port = findAvailablePort(10000, 30000);
+            }
+
+            List<IProtocol> mqtt = Collections.<IProtocol>singletonList(new Protocol("mqtt"));
+
+            List<IExtension> extensions = Collections.<IExtension>singletonList(new Mqtt3Extension());
+            Draft_6455 draft6455 = new Draft_6455(extensions, mqtt);
+
+            return new Mqtt3WebSocketBroker(port, draft6455, listeners);
+        }
+
+        private int findAvailablePort(int minPort, int maxPort) {
+            int portRange = maxPort - minPort;
+
+            int randomOffset = random.nextInt(portRange + 1);
+
+            for(int i = minPort; i < maxPort; i++) {
+
+                int port = (i + randomOffset) % portRange;
+                if(isPortAvailable(port)) {
+                    return port;
+                }
+            }
+
+            throw new IllegalStateException("Could not find an available port");
+        }
+
+        protected boolean isPortAvailable(int port) {
+            try {
+                ServerSocket serverSocket = ServerSocketFactory.getDefault().createServerSocket(
+                        port, 1, InetAddress.getByName("localhost"));
+                serverSocket.close();
+                return true;
+            } catch (Exception ex) {
+                return false;
+            }
+        }
+    }
 
     public static class Subscription {
 
@@ -74,27 +152,27 @@ public class Mqtt3WebSocketBroker extends WebSocketServer {
         }
     }
 
-    public Mqtt3WebSocketBroker(int port) {
-        super(new InetSocketAddress(port));
-    }
+    private List<Mqtt3TopicListener> listeners;
 
-    public Mqtt3WebSocketBroker(InetSocketAddress address) {
+    public Mqtt3WebSocketBroker(InetSocketAddress address, List<Mqtt3TopicListener> listeners) {
         super(address);
+        this.listeners = listeners;
     }
 
-    public Mqtt3WebSocketBroker(int port, Draft_6455 draft) {
+    public Mqtt3WebSocketBroker(int port, Draft_6455 draft, List<Mqtt3TopicListener> listeners) {
         super(new InetSocketAddress(port), Collections.<Draft>singletonList(draft));
+        this.listeners = listeners;
     }
 
     @Override
     protected boolean onConnect(SelectionKey key) {
-        Log.d(LOG_TAG, "onConnect");
+        LOGGER.info("onConnect");
         return super.onConnect(key);
     }
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
-        Log.d(LOG_TAG, "onOpen");
+        LOGGER.info("onOpen");
 
         Subscriptions subscriptions = new Subscriptions();
         conn.setAttachment(subscriptions);
@@ -111,12 +189,12 @@ public class Mqtt3WebSocketBroker extends WebSocketServer {
 
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-        Log.d(LOG_TAG, "onClose");
+        LOGGER.info("onClose");
     }
 
     @Override
     public void onMessage(WebSocket conn, String message) {
-        Log.d(LOG_TAG, conn + ": " + message);
+        LOGGER.info(conn + ": " + message);
     }
 
     @Override
@@ -154,7 +232,7 @@ public class Mqtt3WebSocketBroker extends WebSocketServer {
 
                     String topic = new String(topicBytes);
 
-                    Log.d(LOG_TAG, "Subscribe to " + topic + " with QoS " + String.format("%02X", qos));
+                    LOGGER.info("Subscribe to " + topic + " with QoS " + String.format("%02X", qos));
 
                     subscriptions.add(topic, qos);
                 }
@@ -186,7 +264,7 @@ public class Mqtt3WebSocketBroker extends WebSocketServer {
 
                     String topic = new String(topicBytes);
 
-                    Log.d(LOG_TAG, "Unsubscribe to " + topic);
+                    LOGGER.info("Unsubscribe to " + topic);
 
                     subscriptions.remove(topic);
                 }
@@ -219,7 +297,7 @@ public class Mqtt3WebSocketBroker extends WebSocketServer {
 
                 int qos = (flags >>> 1) & 0x3;
 
-                Log.d(LOG_TAG, "Publish to " + new String(topicBytes) + " with QoS " + String.format("%02X", qos) + ":\n" + new String(payload));
+                LOGGER.info("Publish to " + new String(topicBytes) + " with QoS " + String.format("%02X", qos) + ":\n" + new String(payload));
 
                 if (qos == 2) {
                     // PUBREC
@@ -250,6 +328,10 @@ public class Mqtt3WebSocketBroker extends WebSocketServer {
                 bytes[0] = (byte) (bytes[0] & ~0b11110111);
 
                 publishToClients(conn, topic, bytes);
+
+                for (Mqtt3TopicListener listener : listeners) {
+                    listener.onPublish(this, conn, topic, bytes);
+                }
 
                 break;
             }
@@ -307,24 +389,22 @@ public class Mqtt3WebSocketBroker extends WebSocketServer {
         }
     }
 
-    public void publish(String topic, int qos, byte[] payload) {
+    public void publish(String topic, int qos, byte[] payload) throws IOException {
         byte[] topicBytes = topic.getBytes(StandardCharsets.UTF_8);
 
-        ByteBuf buffer = Unpooled.buffer(payload.length + topicBytes.length + 5 + 2 + 2);
+        ByteArrayOutputStream bout = new ByteArrayOutputStream(payload.length + topicBytes.length + 5 + 2 + 2);
+        DataOutputStream dout = new DataOutputStream(bout);
 
         int header = 0b00111000 | encodeQos(qos) << 1;
 
-        buffer.writeByte(header);
-        encode(payload.length + 2 + 2 + topicBytes.length, buffer);
-        buffer.writeShort(topicBytes.length);
-        buffer.writeBytes(topicBytes);
+        dout.write(header);
+        encode(payload.length + 2 + 2 + topicBytes.length, dout);
+        dout.writeShort(topicBytes.length);
+        dout.write(topicBytes);
 
-        buffer.writeShort(messageNumber.incrementAndGet());
+        dout.writeShort(messageNumber.incrementAndGet());
 
-        buffer.writeBytes(payload);
-
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        bout.write(buffer.array(), 0, buffer.readableBytes());
+        dout.write(payload);
 
         publishRaw(topic, bout.toByteArray());
     }
@@ -338,7 +418,7 @@ public class Mqtt3WebSocketBroker extends WebSocketServer {
      * @param byteBuf the byte buffer to encode to.
      */
 
-    private void encode(int value, final ByteBuf byteBuf) {
+    private void encode(int value, final DataOutput byteBuf) throws IOException {
         do {
             int encodedByte = value & VALUE_MASK;
             value >>>= VALUE_BITS;
@@ -366,7 +446,7 @@ public class Mqtt3WebSocketBroker extends WebSocketServer {
             if(subscriptions.hasTopic(topic)) {
                 connection.send(bytes);
 
-                Log.d(LOG_TAG, "Publish message size " + bytes.length + " to topic " + topic);
+                LOGGER.info("Publish message size " + bytes.length + " to topic " + topic);
             }
         }
     }
@@ -395,12 +475,22 @@ public class Mqtt3WebSocketBroker extends WebSocketServer {
 
     @Override
     public void onError(WebSocket conn, Exception ex) {
-        Log.e(LOG_TAG, "Error", ex);
+        LOGGER.error("onError", ex);
     }
 
     @Override
     public void onStart() {
-        Log.d(LOG_TAG, "Server started!");
+        LOGGER.info("onStart");
+    }
+
+    public void clearListeners() {
+        this.listeners = new ArrayList<>();
+    }
+
+    public void addListener(Mqtt3TopicListener listener) {
+        ArrayList<Mqtt3TopicListener> mqtt3TopicListeners = new ArrayList<>(this.listeners);
+        mqtt3TopicListeners.add(listener);
+        this.listeners = mqtt3TopicListeners;
     }
 
 }
