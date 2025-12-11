@@ -1,6 +1,10 @@
 # hwb-utilities
 Utilities for [HWB](https://github.com/entur/hwb). 
 
+ * DTOs from JSON Schema
+ * Wrapped MQTT 3 Broker for testing
+ * Wrapped MQTT 3 client
+
 ## APIs
 DTOs from JSON schema files. 
 

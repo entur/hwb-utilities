@@ -6,11 +6,11 @@ android {
     defaultConfig {
         minSdkVersion 23
     }
-    namespace "hwb.messages"
+    namespace "hwb.utilities"
 }
 
 jsonSchema2Pojo { // https://github.com/joelittlejohn/jsonschema2pojo/tree/master/jsonschema2pojo-gradle-plugin
-  targetPackage = 'hwb.utilities.message'
+  targetPackage = 'hwb.utilities'
   parcelable = true
   source = files(rootProject.file("specifications"))
   includeGeneratedAnnotation = false

@@ -1,1 +1,1 @@
-include ":hwb-messages-java-lib", ":hwb-messages-android-lib"
+include ":hwb-messages-java-lib", ":hwb-messages-android-lib", ":hwb-mqtt3-client-java-lib", ":hwb-broker-java-lib"
