@@ -6,6 +6,8 @@ import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient;
 import com.hivemq.client.mqtt.mqtt3.message.connect.connack.Mqtt3ConnAck;
 import com.hivemq.client.mqtt.mqtt3.message.connect.connack.Mqtt3ConnAckReturnCode;
 import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 import java.io.IOException;
@@ -16,6 +18,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class MqttServiceClient {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MqttServiceClient.class);
+
     protected ObjectMapper objectMapper = new ObjectMapper();
 
     protected final Executor executor;
@@ -29,7 +34,7 @@ public class MqttServiceClient {
         this.connectionTimeout = connectionTimeout;
     }
 
-    public void publish(String topic, Object body) throws IOException {
+    public void publishAsJson(String topic, Object body) throws IOException {
         byte[] payload = objectMapper.writeValueAsBytes(body);
 
         publish(topic, payload);
@@ -60,16 +65,31 @@ public class MqttServiceClient {
                 .send();
     }
 
-    public <T, R> void exchange(MqttServiceExchange<T, R> exchange) {
-        subscribe(exchange.getReadTopic(), (c) -> {
-            try {
-                byte[] apply = exchange.apply(c.getPayloadAsBytes());
+    public void subscribeToString(String topic, Consumer<String> callback) {
+        client.subscribeWith()
+                .topicFilter(topic)
+                .qos(MqttQos.EXACTLY_ONCE)
+                .callback( (c) -> {
+                    callback.accept(new String(c.getPayloadAsBytes(), StandardCharsets.UTF_8));
+                })
+                .executor(executor)
+                .send();
+    }
 
-                publish(exchange.getWriteTopic(), apply);
-            } catch(Exception e) {
-                exchange.getErrorHandler().accept(e);
-            }
-        });
+    public <T> void subscribeToJson(String topic, Consumer<T> callback, Class<T> cls) {
+        client.subscribeWith()
+                .topicFilter(topic)
+                .qos(MqttQos.EXACTLY_ONCE)
+                .callback( (c) -> {
+                    try {
+                        T t = objectMapper.readValue(c.getPayloadAsBytes(), cls);
+                        callback.accept(t);
+                    } catch (Exception e) {
+                        LOGGER.error("Problem deserializing payload for " + topic, e);
+                    }
+                })
+                .executor(executor)
+                .send();
     }
 
     public <T> T unmarshal(Mqtt3Publish publish, Class<T> cls) throws IOException {
