@@ -9,6 +9,7 @@ import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish;
 
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +33,14 @@ public class MqttServiceClient {
         byte[] payload = objectMapper.writeValueAsBytes(body);
 
         publish(topic, payload);
+    }
+
+    public void publish(String topic, String payload) {
+        client.publishWith()
+                .topic(topic)
+                .qos(MqttQos.EXACTLY_ONCE)
+                .payload(payload.getBytes(StandardCharsets.UTF_8))
+                .send();
     }
 
     public void publish(String topic, byte[] payload) {

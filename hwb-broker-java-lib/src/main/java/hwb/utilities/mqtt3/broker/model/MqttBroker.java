@@ -1,17 +1,10 @@
 package hwb.utilities.mqtt3.broker.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
 import java.util.function.Consumer;
 
-import hwb.utilities.message.device.deviceId.diagnostics.DiagnosticsSchema;
+import hwb.utilities.device.diagnostics.DiagnosticsSchema;
 
-public class HwbBroker {
+public class MqttBroker {
 
     public class HwbDeviceBuilder {
 
@@ -27,7 +20,7 @@ public class HwbBroker {
 
         private String statusText;
 
-        private HwbNfcReader hfcReader;
+        private MqttNfcReader hfcReader;
 
         public void nfcReader(Consumer<HwbNfcReaderBuilder> consumer) {
 

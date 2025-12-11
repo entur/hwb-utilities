@@ -32,7 +32,7 @@ import javax.net.ServerSocketFactory;
 /**
  * A simple WebSocketServer MQTT broker implementation for use with testing.
  *
- * While crude, this is avoids pulling in netty as a dependency.
+ * While crude, this avoids pulling in netty as a dependency.
  */
 public class Mqtt3WebSocketBroker extends WebSocketServer {
 
