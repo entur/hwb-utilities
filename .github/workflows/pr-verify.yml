@@ -1,0 +1,13 @@
+name: Verify PR
+on:
+  pull_request:
+    types:
+      - synchronize
+      - opened
+
+jobs:
+  verify-pr:
+    permissions:
+      contents: read
+    uses: entur/abt-gha-public/.github/workflows/gradle-open-source-verify.yml@main
+    # no secrets necessary
