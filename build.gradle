@@ -14,7 +14,10 @@ buildscript {
 
     repositories repos
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'com.android.tools.build:gradle:9.3.1'
+        // force commons-lang3 into the root buildscript classloader so it is shared with
+        // jsonschema2pojo's plugin classloader (prevents split-classloader IllegalAccessError)
+        classpath 'org.apache.commons:commons-lang3:3.20.0'
     }
 }
 
@@ -100,7 +103,7 @@ configure(androidLibraryProjects()) {
             targetCompatibility JavaVersion.VERSION_1_8
         }
 
-        lintOptions {
+        lint {
             // disable lint in projects
             // add lint in app, including dependencies
             tasks.lint.enabled = false
@@ -119,7 +122,7 @@ configure(androidLibraryProjects()) {
             buildConfig = false
         }
 
-        packagingOptions {
+        packaging {
             exclude 'META-INF/INDEX.LIST'
             exclude 'META-INF/DEPENDENCIES'
             exclude 'META-INF/LICENSE'
