@@ -48,7 +48,7 @@ allprojects {
 }
 
 ext {
-    jacksonVersion = '2.22.2'
+    jacksonVersion = '2.22.3'
     junitVersion = '4.13.2'
 }
 
